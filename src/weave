@@ -43,9 +43,16 @@ def detect_runtime(file):
         return "go"
     raise ValueError(f"Cannot detect runtime for: {file}")
 
-def build_command(runtime, file):
+def build_command(runtime, file, port):
+    """Build the command list for subprocess.Popen"""
+    if runtime == "python3":
+        return ["python3", file, str(port)]
+    if runtime == "node":
+        return ["node", file, str(port)]
+    if runtime == "ruby":
+        return ["ruby", file, str(port)]
     if runtime == "go":
-        return ["go", "run", file]
+        return ["go", "run", file, str(port)]
     return [runtime, file]
 
 # ----------------------------
@@ -55,8 +62,9 @@ def start_server(args):
     runtime = args.runtime or detect_runtime(args.file)
     name = args.name or f"{runtime}_{args.port}"
 
-    cmd = build_command(runtime, args.file)
+    cmd = build_command(runtime, args.file, args.port)
 
+    # Run the process
     if args.daemon:
         log_file = LOGS_DIR / f"{name}.log"
         with open(log_file, "w") as log:
@@ -64,6 +72,7 @@ def start_server(args):
     else:
         proc = subprocess.Popen(cmd)
 
+    # Save to servers.json
     servers = load_servers()
     servers[name] = {
         "pid": proc.pid,
@@ -79,7 +88,7 @@ def stop_server(args):
     servers = load_servers()
     target = args.target
 
-    for name, info in servers.items():
+    for name, info in list(servers.items()):
         if name == target or str(info["port"]) == target:
             try:
                 os.kill(info["pid"], signal.SIGTERM)
@@ -170,7 +179,6 @@ func main() {
     path.write_text(templates[args.runtime])
     path.chmod(0o755)  # make executable
     print(f"{args.runtime} preset created at {path}")
-
 
 # ----------------------------
 # CLI
