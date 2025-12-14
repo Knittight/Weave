@@ -1,0 +1,131 @@
+#!/usr/bin/env python3
+"""
+Weave: Multi-runtime server manager for Knittight
+"""
+
+import argparse
+import subprocess
+import json
+import os
+import signal
+from pathlib import Path
+
+# Paths
+WEAVE_DIR = Path.home() / ".weave"
+SERVERS_FILE = WEAVE_DIR / "servers.json"
+LOGS_DIR = WEAVE_DIR / "logs"
+
+WEAVE_DIR.mkdir(exist_ok=True)
+LOGS_DIR.mkdir(exist_ok=True)
+if not SERVERS_FILE.exists():
+    SERVERS_FILE.write_text("{}")
+
+# Helper functions
+def load_servers():
+    return json.loads(SERVERS_FILE.read_text())
+
+def save_servers(servers):
+    SERVERS_FILE.write_text(json.dumps(servers, indent=2))
+
+def detect_runtime(file):
+    if file.endswith(".py"): return "python3"
+    if file.endswith(".js"): return "node"
+    if file.endswith(".rb"): return "ruby"
+    if file.endswith(".go"): return "go run"
+    raise ValueError(f"Cannot detect runtime for file: {file}")
+
+def start_server(args):
+    runtime = args.runtime or detect_runtime(args.file)
+    name = args.name or f"{runtime}_{args.port}"
+
+    # Prepare command
+    cmd = [runtime] + ([args.file] if runtime != "go run" else ["run", args.file])
+
+    # Daemon mode
+    if args.daemon:
+        log_file = LOGS_DIR / f"{name}.log"
+        with open(log_file, "w") as f:
+            proc = subprocess.Popen(cmd, stdout=f, stderr=f)
+    else:
+        proc = subprocess.Popen(cmd)
+
+    # Save server info
+    servers = load_servers()
+    servers[name] = {
+        "pid": proc.pid,
+        "runtime": runtime,
+        "port": args.port,
+        "file": args.file
+    }
+    save_servers(servers)
+    print(f"Started {name} ({runtime}) on port {args.port} with PID {proc.pid}")
+
+def stop_server(args):
+    servers = load_servers()
+    target = None
+    for name, info in servers.items():
+        if name == args.name or info["port"] == args.port:
+            target = (name, info)
+            break
+    if not target:
+        print("Server not found.")
+        return
+    name, info = target
+    try:
+        os.kill(info["pid"], signal.SIGTERM)
+        print(f"Stopped {name} (PID {info['pid']})")
+        del servers[name]
+        save_servers(servers)
+    except ProcessLookupError:
+        print(f"Process {info['pid']} not running, cleaning up.")
+        del servers[name]
+        save_servers(servers)
+
+def status_servers(args):
+    servers = load_servers()
+    if not servers:
+        print("No servers running.")
+        return
+    print(f"{'NAME':<20}{'RUNTIME':<10}{'PORT':<6}{'PID':<8}")
+    for name, info in servers.items():
+        print(f"{name:<20}{info['runtime']:<10}{info['port']:<6}{info['pid']:<8}")
+
+def list_runtimes(args):
+    print("Available runtimes/templates:")
+    print("- python3 (.py)")
+    print("- node (.js)")
+    print("- ruby (.rb)")
+    print("- go (.go)")
+
+def main():
+    parser = argparse.ArgumentParser(description="Weave: Multi-runtime server manager")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    # start
+    parser_start = subparsers.add_parser("start")
+    parser_start.add_argument("-r", "--runtime", help="Runtime (python/node/ruby/go)")
+    parser_start.add_argument("-p", "--port", type=int, default=8000, help="Port number")
+    parser_start.add_argument("-F", "--file", required=True, help="File or folder to serve")
+    parser_start.add_argument("-n", "--name", help="Server instance name")
+    parser_start.add_argument("-d", "--daemon", action="store_true", help="Run in background")
+    parser_start.set_defaults(func=start_server)
+
+    # stop
+    parser_stop = subparsers.add_parser("stop")
+    parser_stop.add_argument("-n", "--name", help="Server name")
+    parser_stop.add_argument("-p", "--port", type=int, help="Server port")
+    parser_stop.set_defaults(func=stop_server)
+
+    # status
+    parser_status = subparsers.add_parser("status")
+    parser_status.set_defaults(func=status_servers)
+
+    # list
+    parser_list = subparsers.add_parser("list")
+    parser_list.set_defaults(func=list_runtimes)
+
+    args = parser.parse_args()
+    args.func(args)
+
+if __name__ == "__main__":
+    main()
