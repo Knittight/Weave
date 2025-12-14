@@ -16,3 +16,6 @@ buut if you wanna be extra i can say this
 ## Usage
 
 To make a server preset run `weave pres -r <runtime> <file>`
+To run said server preset run `weave start -r <runtime> -F <file> -p <port>`
+To stop said server run `weave stop <port>`
+To list all servers run `weave status`
