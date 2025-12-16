@@ -2,5 +2,6 @@
   "name": "weave",
   "version": "1.0.0",
   "description": "Weave is a server hosting manager that can support node.js, python, and other languages",
-  "dependencies": []
+  "owner": "galaxyg144 @ Knittight",
+  "dependencies": [apic]
 }
