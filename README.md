@@ -1,21 +1,55 @@
 # Weave
 
-Weave is a server hosting manager that can support node.js, python, and other languages
+Weave is a multi-runtime server manager that can host Node.js, Python, Ruby, and Go servers from a single CLI.
 
 ## Installation
 
-well. if you have (knit)[https://github.com/Knittight/Knit] installed, you can just do `knit install weave` thats it.
+If you have [knit](https://github.com/Knittight/Knit) installed:
 
-buut if you wanna be extra i can say this
+```
+knit install weave
+```
 
-1. Download src/weave to a folder for example... "qwert"
-2. Run `chmod +x qwert/src/weave`
-3. Run `mv qwert/src/weave /usr/local/bin/weave`
-4. Run `weave --version` to check if it works.
+Or manually:
+
+1. Download `src/weave` to a directory
+2. Run `chmod +x src/weave`
+3. Run `mv src/weave /usr/local/bin/weave`
+4. Run `weave --version` to verify
 
 ## Usage
 
-To make a server preset run `weave pres -r <runtime> <file>`
-To run said server preset run `weave start -r <runtime> -F <file> -p <port>`
-To stop said server run `weave stop <port>`
-To list all servers run `weave status`
+Create a server preset:
+```
+weave pres -r python server.py
+```
+
+Start a server (runtime auto-detected from file extension):
+```
+weave start -F server.py -p 8000
+```
+
+Start a server in daemon mode:
+```
+weave start -F server.py -p 8000 -d
+```
+
+Stop a server (by name or port):
+```
+weave stop 8000
+```
+
+Restart a server:
+```
+weave restart my_server
+```
+
+Check running servers:
+```
+weave status
+```
+
+List supported runtimes:
+```
+weave list
+```
